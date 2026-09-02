@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MinePortal Admin</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0d1117;color:#c9d1d9;min-height:100vh}
+.topbar{background:#161b22;border-bottom:1px solid #30363d;padding:12px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.topbar h1{font-size:18px;color:#58a6ff;font-weight:600}
+.topbar-btns{display:flex;gap:8px;align-items:center}
+.topbar-user{color:#8b949e;font-size:13px;margin-right:12px}
+.btn{padding:8px 16px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#c9d1d9;cursor:pointer;font-size:13px;font-weight:500;transition:all .15s}
+.btn:hover{background:#30363d;border-color:#484f58}
+.btn-green{background:#238636;border-color:#238636;color:#fff}
+.btn-green:hover{background:#2ea043}
+.btn-blue{background:#1f6feb;border-color:#1f6feb;color:#fff}
+.btn-blue:hover{background:#388bfd}
+.btn-red{background:#da3633;border-color:#da3633;color:#fff}
+.btn-red:hover{background:#f85149}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px}
+.btn:disabled{opacity:0.5;cursor:not-allowed}
+.container{max-width:1100px;margin:0 auto;padding:24px}
+
+/* Login */
+#login-view{display:flex;align-items:center;justify-content:center;min-height:80vh}
+.login-box{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:40px;width:360px;text-align:center}
+.login-box h2{color:#58a6ff;margin-bottom:24px;font-size:20px}
+.login-box input{width:100%;padding:10px 14px;background:#0d1117;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:14px;margin-bottom:16px}
+.login-box input:focus{outline:none;border-color:#58a6ff}
+.login-box .btn{width:100%}
+.login-err{color:#f85149;font-size:13px;margin-bottom:12px;display:none}
+
+/* List view */
+.search-bar{display:flex;gap:12px;margin-bottom:16px}
+.search-bar input{flex:1;padding:10px 14px;background:#161b22;border:1px solid #30363d;border-radius:6px;color:#c9d1d9;font-size:14px}
+.search-bar input:focus{outline:none;border-color:#58a6ff}
+.company-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;margin-bottom:8px;cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:space-between}
+.company-card:hover{border-color:#484f58;background:#1c2128}
+.company-card-left{display:flex;align-items:center;gap:12px}
+.company-card-left h3{font-size:15px;color:#c9d1d9;font-weight:600}
+.company-card-left .ticker{background:#1f6feb;color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.company-card-left .exchange{color:#8b949e;font-size:12px}
+.company-card-right{display:flex;gap:8px;align-items:center}
+.company-card-right .meta{color:#8b949e;font-size:12px;text-align:right}
+
+/* Stat bar */
+.stat-bar{display:flex;gap:16px;padding:12px 16px;background:#1c2128;border-radius:6px;margin-bottom:16px;font-size:13px;flex-wrap:wrap}
+.stat-bar span{color:#8b949e}
+.stat-bar strong{color:#58a6ff}
+
+/* Section styles from XML builder */
+.section{background:#161b22;border:1px solid #30363d;border-radius:8px;margin-bottom:16px;overflow:hidden}
+.section-header{background:#1c2128;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #30363d;cursor:pointer;user-select:none}
+.section-header h2{font-size:15px;color:#58a6ff;font-weight:600}
+.section-header h3{font-size:14px;color:#7ee787;font-weight:500}
+.section-header h4{font-size:13px;color:#d2a8ff;font-weight:500}
+.section-header h5{font-size:13px;color:#ffa657;font-weight:500}
+.section-header .toggle{color:#484f58;font-size:12px;margin-right:8px;transition:transform .2s}
+.section-header .toggle.open{transform:rotate(90deg)}
+.section-body{padding:16px}
+.section-body.collapsed{display:none}
+
+/* Forms */
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-row.triple{grid-template-columns:1fr 1fr 1fr}
+.form-row.quad{grid-template-columns:1fr 1fr 1fr 1fr}
+.form-row.single{grid-template-columns:1fr}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group label{font-size:12px;color:#8b949e;font-weight:500;text-transform:uppercase;letter-spacing:0.5px}
+.form-group label .req{color:#f85149}
+.form-group input,.form-group select,.form-group textarea{background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:8px 12px;color:#c9d1d9;font-size:14px;font-family:inherit}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:#58a6ff;box-shadow:0 0 0 3px rgba(88,166,255,0.15)}
+.form-group textarea{min-height:60px;resize:vertical}
+.form-group select{appearance:auto}
+
+/* Nested entities */
+.nested{margin-left:20px;border-left:2px solid #30363d;padding-left:16px;margin-top:12px}
+.nested.green-border{border-left-color:#238636}
+.nested.purple-border{border-left-color:#8b5cf6}
+.nested.orange-border{border-left-color:#d29922}
+.entity-wrapper{position:relative;margin-bottom:12px;padding:12px;background:#0d1117;border-radius:6px}
+.entity-wrapper:last-child{margin-bottom:0}
+.entity-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.entity-header h5{color:#ffa657;font-size:13px;font-weight:500}
+.add-btn{display:inline-flex;align-items:center;gap:4px;padding:6px 12px;background:transparent;border:1px dashed #30363d;border-radius:6px;color:#58a6ff;cursor:pointer;font-size:13px;transition:all .15s;margin-top:8px}
+.add-btn:hover{border-color:#58a6ff;background:rgba(88,166,255,0.1)}
+
+/* Breadcrumb */
+.breadcrumb{display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:14px}
+.breadcrumb a{color:#58a6ff;text-decoration:none;cursor:pointer}
+.breadcrumb a:hover{text-decoration:underline}
+.breadcrumb .sep{color:#484f58}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:24px;width:600px;max-width:90vw;max-height:80vh;overflow-y:auto}
+.modal h2{color:#58a6ff;font-size:18px;margin-bottom:16px}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
+
+/* Loading */
+.spinner{display:inline-block;width:16px;height:16px;border:2px solid #30363d;border-top-color:#58a6ff;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-row{text-align:center;padding:40px;color:#8b949e}
+
+/* Toast */
+.toast{position:fixed;bottom:20px;right:20px;padding:12px 20px;background:#238636;color:#fff;border-radius:8px;font-size:14px;z-index:300;display:none;animation:slideIn .3s}
+@keyframes slideIn{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+/* Confirm dialog */
+.confirm-bar{background:#1c2128;border:1px solid #30363d;border-radius:6px;padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between}
+.confirm-bar .msg{color:#ffa657;font-size:13px}
+
+/* Dirty indicator */
+.dirty-dot{display:inline-block;width:8px;height:8px;background:#ffa657;border-radius:50%;margin-left:6px;vertical-align:middle;display:none}
+.is-dirty .dirty-dot{display:inline-block}
+</style>
+</head>
+<body>
+
+<!-- LOGIN VIEW -->
+<div id="login-view">
+  <div class="login-box">
+    <h2>MinePortal Admin</h2>
+    <div class="login-err" id="login-err">Invalid password</div>
+    <input type="password" id="login-pw" placeholder="Admin password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="btn btn-blue" onclick="doLogin()" style="width:100%">Sign In</button>
+  </div>
+</div>
+
+<!-- MAIN APP (hidden until login) -->
+<div id="app" style="display:none">
+  <div class="topbar">
+    <h1>MinePortal Admin</h1>
+    <div class="topbar-btns">
+      <span class="topbar-user" id="topbar-info"></span>
+      <button class="btn" onclick="showXmlUpload()">Upload XML</button>
+      <button class="btn" onclick="doLogout()">Logout</button>
+    </div>
+  </div>
+
+  <div class="container" id="main-container">
+    <!-- Content injected by JS -->
+  </div>
+</div>
+
+<!-- XML Upload Modal -->
+<div class="modal-overlay" id="xml-modal">
+  <div class="modal">
+    <h2>Upload XML Import</h2>
+    <p style="color:#8b949e;font-size:13px;margin-bottom:12px">Paste MinePortal XML or upload an .xml file to bulk-import companies, properties, drill programs, and results.</p>
+    <div style="margin-bottom:12px">
+      <label style="display:inline-block;padding:8px 16px;background:#238636;color:#fff;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600">
+        Choose XML File
+        <input type="file" id="xml-file" accept=".xml" style="display:none" onchange="loadXmlFile(this)">
+      </label>
+      <span id="xml-file-name" style="color:#8b949e;font-size:13px;margin-left:10px"></span>
+    </div>
+    <textarea id="xml-paste" style="width:100%;min-height:200px;background:#0d1117;border:1px solid #30363d;border-radius:6px;padding:12px;color:#c9d1d9;font-family:'SF Mono',Monaco,Consolas,monospace;font-size:13px;resize:vertical" placeholder="Or paste XML here..."></textarea>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('xml-modal')">Cancel</button>
+      <button class="btn btn-green" onclick="submitXml()">Import</button>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal-overlay" id="delete-modal">
+  <div class="modal" style="width:400px">
+    <h2 style="color:#f85149">Confirm Delete</h2>
+    <p id="delete-msg" style="color:#c9d1d9;font-size:14px;margin-bottom:16px"></p>
+    <div class="modal-actions">
+      <button class="btn" onclick="closeModal('delete-modal')">Cancel</button>
+      <button class="btn btn-red" id="delete-confirm-btn">Delete</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var API='/admin/api';
+var TOKEN=null;
+
+// ─── Auth ───────────────────────────────────────────────────────────
+function doLogin(){
+  var pw=document.getElementById('login-pw').value;
+  fetch(API+'/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:pw})})
+  .then(function(r){return r.json()})
+  .then(function(d){
+    if(d.token){
+      TOKEN=d.token;
+      document.getElementById('login-view').style.display='none';
+      document.getElementById('app').style.display='block';
+      loadCompanyList();
+    } else {
+      document.getElementById('login-err').style.display='block';
+    }
+  }).catch(function(){document.getElementById('login-err').style.display='block'});
+}
+function doLogout(){TOKEN=null;location.reload()}
+function authHeaders(){return {'Content-Type':'application/json','X-Admin-Token':TOKEN}}
+
+// ─── Toast ──────────────────────────────────────────────────────────
+function toast(msg,color){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.style.background=color||'#238636';t.style.display='block';
+  setTimeout(function(){t.style.display='none'},3000);
+}
+
+// ─── Modal helpers ──────────────────────────────────────────────────
+function showXmlUpload(){document.getElementById('xml-modal').classList.add('show')}
+function loadXmlFile(input){
+  var file=input.files[0];
+  if(!file)return;
+  document.getElementById('xml-file-name').textContent=file.name;
+  var reader=new FileReader();
+  reader.onload=function(e){document.getElementById('xml-paste').value=e.target.result};
+  reader.readAsText(file);
+}
+function closeModal(id){document.getElementById(id).classList.remove('show')}
+
+function submitXml(){
+  var xml=document.getElementById('xml-paste').value.trim();
+  if(!xml){toast('Paste or upload XML first','#da3633');return}
+  fetch(API+'/import-xml',{method:'POST',headers:{'Content-Type':'application/xml','X-Admin-Token':TOKEN},body:xml})
+  .then(function(r){return r.json()})
+  .then(function(d){
+    if(d.error){toast('Error: '+d.error,'#da3633');return}
+    toast('Imported! '+(d.summary||''));
+    closeModal('xml-modal');
+    document.getElementById('xml-paste').value='';
+    document.getElementById('xml-file').value='';
+    document.getElementById('xml-file-name').textContent='';
+    loadCompanyList();
+  }).catch(function(e){toast('Import failed: '+e,'#da3633')});
+}
+
+// ─── API helpers ────────────────────────────────────────────────────
+function apiGet(path){return fetch(API+path,{headers:authHeaders()}).then(function(r){return r.json()}).then(function(d){return d.data!==undefined?d.data:d})}
+function apiPost(path,data){return fetch(API+path,{method:'POST',headers:authHeaders(),body:JSON.stringify(data)}).then(function(r){return r.json()})}
+function apiPut(path,data){return fetch(API+path,{method:'PUT',headers:authHeaders(),body:JSON.stringify(data)}).then(function(r){return r.json()})}
+function apiDelete(path){return fetch(API+path,{method:'DELETE',headers:authHeaders()}).then(function(r){return r.json()})}
+
+// ─── State ──────────────────────────────────────────────────────────
+var currentView='list'; // list | detail
+var companies=[];
+var detailData=null;
+var detailCompanyId=null;
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPANY LIST VIEW
+// ═══════════════════════════════════════════════════════════════════
+function loadCompanyList(){
+  currentView='list';
+  var c=document.getElementById('main-container');
+  c.innerHTML='<div class="loading-row"><div class="spinner"></div> Loading companies...</div>';
+  apiGet('/companies').then(function(rows){
+    companies=rows;
+    renderCompanyList(rows);
+  }).catch(function(e){c.innerHTML='<p style="color:#f85149">Error loading companies: '+e+'</p>'});
+}
+
+function renderCompanyList(rows){
+  var c=document.getElementById('main-container');
+  var html='<div class="stat-bar"><span>Total Companies: <strong>'+rows.length+'</strong></span></div>';
+  html+='<div class="search-bar"><input type="text" id="search-input" placeholder="Search companies..." oninput="filterCompanies()"><button class="btn btn-green" onclick="showNewCompany()">+ New Company</button></div>';
+  html+='<div id="company-list">';
+  rows.forEach(function(co){
+    html+='<div class="company-card" onclick="loadCompanyDetail('+co.id+')">';
+    html+='<div class="company-card-left">';
+    if(co.ticker)html+='<span class="ticker">'+esc(co.ticker)+'</span>';
+    html+='<h3>'+esc(co.name)+'</h3>';
+    if(co.exchange)html+='<span class="exchange">'+esc(co.exchange)+'</span>';
+    html+='</div>';
+    html+='<div class="company-card-right">';
+    html+='<span style="color:#484f58">&#9654;</span>';
+    html+='</div></div>';
+  });
+  if(!rows.length)html+='<div class="loading-row" style="color:#8b949e">No companies yet. Add one or upload XML.</div>';
+  html+='</div>';
+  c.innerHTML=html;
+  document.getElementById('topbar-info').textContent=rows.length+' companies';
+}
+
+function filterCompanies(){
+  var q=document.getElementById('search-input').value.toLowerCase();
+  var filtered=companies.filter(function(co){
+    return (co.name||'').toLowerCase().indexOf(q)>-1||(co.ticker||'').toLowerCase().indexOf(q)>-1||(co.exchange||'').toLowerCase().indexOf(q)>-1;
+  });
+  var list=document.getElementById('company-list');
+  list.innerHTML='';
+  filtered.forEach(function(co){
+    var d=document.createElement('div');d.className='company-card';d.onclick=function(){loadCompanyDetail(co.id)};
+    d.innerHTML='<div class="company-card-left">'+(co.ticker?'<span class="ticker">'+esc(co.ticker)+'</span>':'')+'<h3>'+esc(co.name)+'</h3>'+(co.exchange?'<span class="exchange">'+esc(co.exchange)+'</span>':'')+'</div><div class="company-card-right"><span style="color:#484f58">&#9654;</span></div>';
+    list.appendChild(d);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// NEW COMPANY
+// ═══════════════════════════════════════════════════════════════════
+function showNewCompany(){
+  currentView='new-company';
+  var c=document.getElementById('main-container');
+  var html='<div class="breadcrumb"><a onclick="loadCompanyList()">Companies</a><span class="sep">/</span><span>New Company</span></div>';
+  html+='<div class="section"><div class="section-header"><h2>New Company</h2></div><div class="section-body">';
+  html+='<div class="form-row"><div class="form-group"><label>Name <span class="req">*</span></label><input id="nc-name"></div><div class="form-group"><label>Ticker</label><input id="nc-ticker"></div></div>';
+  html+='<div class="form-row"><div class="form-group"><label>Exchange</label><select id="nc-exchange"><option value="">Select...</option><option>CSE</option><option>TSX</option><option>TSXV</option><option>ASX</option><option>NYSE</option><option>NASDAQ</option><option>LSE</option><option>JSE</option><option>AIM</option><option>OTC</option></select></div><div class="form-group"><label>Website</label><input id="nc-website"></div></div>';
+  html+='<div class="form-row single"><div class="form-group"><label>Description</label><textarea id="nc-desc" rows="3"></textarea></div></div>';
+  html+='<div style="margin-top:16px;display:flex;gap:8px"><button class="btn btn-green" onclick="saveNewCompany()">Create Company</button><button class="btn" onclick="loadCompanyList()">Cancel</button></div>';
+  html+='</div></div>';
+  c.innerHTML=html;
+}
+
+function saveNewCompany(){
+  var name=document.getElementById('nc-name').value.trim();
+  if(!name){toast('Company name is required','#da3633');return}
+  var data={name:name,ticker:document.getElementById('nc-ticker').value.trim(),exchange:document.getElementById('nc-exchange').value,website:document.getElementById('nc-website').value.trim(),description:document.getElementById('nc-desc').value.trim()};
+  apiPost('/companies',data).then(function(d){
+    if(d.error){toast('Error: '+d.error,'#da3633');return}
+    toast('Company created!');
+    loadCompanyDetail(d.id);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// COMPANY DETAIL VIEW
+// ═══════════════════════════════════════════════════════════════════
+function loadCompanyDetail(cid){
+  currentView='detail';
+  detailCompanyId=cid;
+  var c=document.getElementById('main-container');
+  c.innerHTML='<div class="loading-row"><div class="spinner"></div> Loading company data...</div>';
+  apiGet('/company/'+cid+'/detail').then(function(d){
+    detailData=d;
+    renderCompanyDetail(d);
+  }).catch(function(e){c.innerHTML='<p style="color:#f85149">Error: '+e+'</p>'});
+}
+
+function renderCompanyDetail(d){
+  var co=d.company;
+  var props=d.properties||[];
+  var c=document.getElementById('main-container');
+
+  // Count sub-entities
+  var totalDrillPrograms=(d.drill_programs||[]).length;
+  var totalDrillResults=(d.drill_results||[]).length;
+  var totalResources=(d.resource_estimates||[]).length;
+  var totalCommodityLines=(d.estimate_commodities||[]).length;
+  var totalOwnership=(d.ownership_history||[]).length;
+  var totalExploration=(d.exploration_programs||[]).length;
+  var totalNearby=(d.nearby_mines||[]).length;
+
+  var html='<div class="breadcrumb"><a onclick="loadCompanyList()">Companies</a><span class="sep">/</span><span>'+esc(co.name)+'</span></div>';
+
+  // Stat bar
+  html+='<div class="stat-bar">';
+  html+='<span>Properties: <strong>'+props.length+'</strong></span>';
+  html+='<span>Drill Programs: <strong>'+totalDrillPrograms+'</strong></span>';
+  html+='<span>Drill Results: <strong>'+totalDrillResults+'</strong></span>';
+  html+='<span>Resource Estimates: <strong>'+totalResources+'</strong></span>';
+  html+='<span>Commodity Lines: <strong>'+totalCommodityLines+'</strong></span>';
+  html+='<span>Ownership: <strong>'+totalOwnership+'</strong></span>';
+  html+='<span>Exploration: <strong>'+totalExploration+'</strong></span>';
+  html+='<span>Nearby Mines: <strong>'+totalNearby+'</strong></span>';
+  html+='</div>';
+
+  // Company section
+  html+='<div class="section" id="company-section"><div class="section-header" onclick="toggleSection(\'company-body\',this)"><div style="display:flex;align-items:center;gap:8px"><span class="toggle open">&#9654;</span><h2>'+esc(co.name)+(co.ticker?' ('+esc(co.ticker)+')':'')+'</h2></div><div style="display:flex;gap:8px"><button class="btn btn-sm btn-red" onclick="event.stopPropagation();confirmDeleteCompany('+co.id+',\''+esc(co.name).replace(/'/g,"\\'")+'\')">Delete Company</button></div></div>';
+  html+='<div class="section-body" id="company-body">';
+  html+=companyFormHtml(co);
+  html+='<div style="margin-top:12px"><button class="btn btn-green btn-sm" onclick="saveCompanyFields('+co.id+')">Save Changes</button></div>';
+  html+='</div></div>';
+
+  // Properties
+  props.forEach(function(prop){
+    var propDrills=(d.drill_programs||[]).filter(function(dp){return dp.property_id===prop.id});
+    var propResults=(d.drill_results||[]).filter(function(dr){return dr.property_id===prop.id});
+    var propResources=(d.resource_estimates||[]).filter(function(re){return re.property_id===prop.id});
+    var allCommodities=d.estimate_commodities||[];
+    var propOwnership=(d.ownership_history||[]).filter(function(oh){return oh.property_id===prop.id});
+    var propExploration=(d.exploration_programs||[]).filter(function(ep){return ep.property_id===prop.id});
+    var propNearby=(d.nearby_mines||[]).filter(function(nm){return nm.property_id===prop.id});
+
+    html+='<div class="section" id="prop-section-'+prop.id+'"><div class="section-header" onclick="toggleSection(\'prop-body-'+prop.id+'\',this)"><div style="display:flex;align-items:center;gap:8px"><span class="toggle open">&#9654;</span><h3>'+esc(prop.name)+'</h3><span style="color:#8b949e;font-size:12px;margin-left:8px">'+(prop.primary_metals||'')+'</span></div><div style="display:flex;gap:8px;align-items:center"><span style="color:#8b949e;font-size:12px">'+propDrills.length+' programs &middot; '+propResults.length+' results</span><button class="btn btn-sm btn-red" onclick="event.stopPropagation();confirmDelete(\'properties\','+prop.id+',\''+esc(prop.name).replace(/'/g,"\\'")+'\')">Delete</button></div></div>';
+    html+='<div class="section-body" id="prop-body-'+prop.id+'">';
+    html+=propertyFormHtml(prop);
+    html+='<div style="margin-top:8px;margin-bottom:16px"><button class="btn btn-green btn-sm" onclick="saveEntity(\'properties\','+prop.id+',\'prop-\','+prop.id+')">Save Changes</button></div>';
+
+    // ── Drill Programs nested in this property ──
+    html+='<div class="nested purple-border" id="drills-container-'+prop.id+'">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><h4 style="color:#d2a8ff;font-size:14px;font-weight:600">Drill Programs ('+propDrills.length+')</h4><button class="add-btn btn-xs" onclick="showAddDrillProgram('+prop.id+')">+ Add Program</button></div>';
+    propDrills.forEach(function(dp){
+      var dpResults=propResults.filter(function(dr){return dr.drill_program_id===dp.id});
+      html+='<div class="section" style="margin-bottom:12px" id="dp-section-'+dp.id+'"><div class="section-header" onclick="toggleSection(\'dp-body-'+dp.id+'\',this)"><div style="display:flex;align-items:center;gap:8px"><span class="toggle">&#9654;</span><h4>'+esc(dp.program_name||'Drill Program')+'</h4><span style="color:#8b949e;font-size:11px;margin-left:8px">'+esc(dp.year||'')+' &middot; '+dpResults.length+' results</span></div><div style="display:flex;gap:8px"><button class="btn btn-sm btn-red" onclick="event.stopPropagation();confirmDelete(\'drill_programs\','+dp.id+',\''+esc(dp.program_name||'').replace(/'/g,"\\'")+'\')">Delete</button></div></div>';
+      html+='<div class="section-body collapsed" id="dp-body-'+dp.id+'">';
+      html+=drillProgramFormHtml(dp);
+      html+='<div style="margin-top:8px;margin-bottom:16px"><button class="btn btn-green btn-sm" onclick="saveEntity(\'drill_programs\','+dp.id+',\'dp-\','+dp.id+')">Save Changes</button></div>';
+
+      // Drill results nested in this program
+      html+='<div class="nested orange-border" id="results-container-'+dp.id+'">';
+      html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><h5 style="color:#ffa657;font-size:13px;font-weight:600">Drill Results ('+dpResults.length+')</h5><button class="add-btn btn-xs" onclick="showAddDrillResult('+dp.id+','+prop.id+')">+ Add Result</button></div>';
+      dpResults.forEach(function(dr){
+        html+=drillResultHtml(dr);
+      });
+      html+='</div>'; // results-container
+
+      html+='</div></div>'; // dp-body, dp-section
+    });
+    html+='</div>'; // drills-container
+
+    // ─┈ Resource Estimates ──
+    html+='<div class="nested" style="border-left-color:#d29922" id="resources-container-'+prop.id+'">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><h5 style="color:#d29922;font-size:14px;font-weight:600">Resource Estimates ('+propResources.length+')</h5><button class="add-btn btn-xs" onclick="showAddResource('+prop.id+')">+ Add Estimate</button></div>';
+    propResources.forEach(function(re){
+      var reCommodities=allCommodities.filter(function(ec){return ec.estimate_id===re.id});
+      html+=resourceEstimateHtml(re,reCommodities);
+    });
+    html+='</div>';
+
+    // ── Ownership History ──
+    html+='<div class="nested" id="ownership-container-'+prop.id+'">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><h5 style="color:#8b949e;font-size:14px;font-weight:600">Ownership History ('+propOwnership.length+')</h5><button class="add-btn btn-xs" onclick="showAddOwnership('+prop.id+')">+ Add Record</button></div>';
+    propOwnership.forEach(function(oh){html+=ownershipHtml(oh)});
+    html+='</div>';
+
+    // ─┈ Exploration Programs ──
+    html+='<div class="nested green-border" id="exploration-container-'+prop.id+'">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><h5 style="color:#7ee787;font-size:14px;font-weight:600">Exploration Programs ('+propExploration.length+')</h5><button class="add-btn btn-xs" onclick="showAddExploration('+prop.id+')">+ Add Program</button></div>';
+    propExploration.forEach(function(ep){html+=explorationHtml(ep)});
+    html+='</div>';
+
+    // ─┈ Nearby Mines ──
+    html+='<div class="nested" style="border-left-color:#484f58" id="nearby-container-'+prop.id+'">';
+    html+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><h5 style="color:#8b949e;font-size:14px;font-weight:600">Nearby Mines ('+propNearby.length+')</h5><button class="add-btn btn-xs" onclick="showAddNearbyMine('+prop.id+')">+ Add Mine</button></div>';
+    propNearby.forEach(function(nm){html+=nearbyMineHtml(nm)});
+    html+='</div>';
+
+    html+='</div></div>'; // prop-body, prop-section
+  });
+
+  // Add property button
+  html+='<button class="add-btn" onclick="showAddProperty('+co.id+')" style="margin-top:12px">+ Add Property</button>';
+
+  c.innerHTML=html;
+}
+
+// ─── Escape ─────────────────────────────────────────────────────────
+function esc(s){return s==null?'':String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+
+// ─── Toggle sections ────────────────────────────────────────────────
+function toggleSection(bodyId,headerEl){
+  var body=document.getElementById(bodyId);
+  if(!body)return;
+  var arrow=headerEl.querySelector('.toggle');
+  if(body.classList.contains('collapsed')){
+    body.classList.remove('collapsed');
+    if(arrow)arrow.classList.add('open');
+  } else {
+    body.classList.add('collapsed');
+    if(arrow)arrow.classList.remove('open');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// FORM HTML GENERATORS
+// ═══════════════════════════════════════════════════════════════════
+function inp(id,val){return '<input id="'+id+'" value="'+esc(val||'')+'">'}
+function sel(id,opts,val){var h='<select id="'+id+'"><option value="">Select...</option>';opts.forEach(function(o){h+='<option'+(o===val?' selected':'')+'>'+esc(o)+'</option>'});return h+'</select>'}
+function ta(id,val,rows){return '<textarea id="'+id+'" rows="'+(rows||2)+'">'+esc(val||'')+'</textarea>'}
+
+function companyFormHtml(co){
+  var h='<div class="form-row">';
+  h+='<div class="form-group"><label>Name <span class="req">*</span></label>'+inp('co-name',co.name)+'</div>';
+  h+='<div class="form-group"><label>Ticker</label>'+inp('co-ticker',co.ticker)+'</div></div>';
+  h+='<div class="form-row">';
+  h+='<div class="form-group"><label>Exchange</label>'+sel('co-exchange',['CSE','TSX','TSXV','ASX','NYSE','NASDAQ','LSE','JSE','AIM','OTC'],co.exchange)+'</div>';
+  h+='<div class="form-group"><label>Website</label>'+inp('co-website',co.website)+'</div></div>';
+  h+='<div class="form-row single"><div class="form-group"><label>Description</label>'+ta('co-desc',co.description,3)+'</div></div>';
+  return h;
+}
+
+function propertyFormHtml(p){
+  var h='<div class="form-row">';
+  h+='<div class="form-group"><label>Name <span class="req">*</span></label>'+inp('prop-name-'+p.id,p.name)+'</div>';
+  h+='<div class="form-group"><label>Jurisdiction</label>'+inp('prop-jurisdiction-'+p.id,p.jurisdiction)+'</div></div>';
+  h+='<div class="form-row">';
+  h+='<div class="form-group"><label>Country</label>'+inp('prop-country-'+p.id,p.country)+'</div>';
+  h+='<div class="form-group"><label>Primary Metals</label>'+inp('prop-primary_metals-'+p.id,p.primary_metals)+'</div></div>';
+  h+='<div class="form-row triple">';
+  h+='<div class="form-group"><label>Status</label>'+sel('prop-status-'+p.id,['Exploration','Active drilling','Development','Production','Care and maintenance'],p.status)+'</div>';
+  h+='<div class="form-group"><label>Current Interest</label>'+inp('prop-current_interest-'+p.id,p.current_interest)+'</div>';
+  h+='<div class="form-group"><label>Size (ha)</label>'+inp('prop-size_ha-'+p.id,p.size_ha)+'</div></div>';
+  h+='<div class="form-row triple">';
+  h+='<div class="form-group"><label>Mineralization Type</label>'+inp('prop-mineralization_type-'+p.id,p.mineralization_type)+'</div>';
+  h+='<div class="form-group"><label>Latitude</label>'+inp('prop-latitude-'+p.id,p.latitude)+'</div>';
+  h+='<div class="form-group"><label>Longitude</label>'+inp('prop-longitude-'+p.id,p.longitude)+'</div></div>';
+  h+='<div class="form-row">';
+  h+='<div class="form-group"><label>Current Owner</label>'+inp('prop-current_owner-'+p.id,p.current_owner)+'</div>';
+  h+='<div class="form-group"><label>Royalty Notes</label>'+ta('prop-royalty_notes-'+p.id,p.royalty_notes,2)+'</div></div>';
+  return h;
+}
+
+function drillProgramFormHtml(dp){
+  var h='<div class="form-row">';
+  h+='<div class="form-group"><label>Program Name <span class="req">*</span></label>'+inp('dp-program_name-'+dp.id,dp.program_name)+'</div>';
+  h+='<div class="form-group"><label>Year</label>'+inp('dp-year-'+dp.id,dp.year)+'</div></div>';
+  h+='<div class="form-row">';
+  h+='<div class="form-group"><label>Drill Type</label>'+sel('dp-drill_type-'+dp.id,['Diamond','RC','Air-core','RAB','Auger'],dp.drill_type)+'</div>';
+  h+='<div class="form-group"><label>Operator</label>'+inp('dp-operator-'+dp.id,dp.operator)+'</div></div>';
+  h+='<div class="form-row quad">';
+  h+='<div class="form-group"><label>Planned Holes</label>'+inp('dp-planned_holes-'+dp.id,dp.planned_holes)+'</div>';
+  h+='<div class="form-group"><label>Planned Meters</label>'+inp('dp-planned_meters-'+dp.id,dp.planned_meters)+'</div>';
+  h+='<div class="form-group"><label>Actual Holes</label>'+inp('dp-actual_holes-'+dp.id,dp.actual_holes)+'</div>';
+  h+='<div class="form-group"><label>Actual Meters</label>'+inp('dp-actual_meters-'+dp.id,dp.actual_meters)+'</div></div>';
+  h+='<div class="form-row single"><div class="form-group"><label>Objectives</label>'+ta('dp-objectives-'+dp.id,dp.objectives)+'</div></div>';
+  h+='<div class="form-row single"><div class="form-group"><label>Source URL</label>'+inp('dp-source_url-'+dp.id,dp.source_url)+'</div></div>';
+  return h;
+}
+
+function drillResultHtml(dr){
+  var h='<div class="entity-wrapper" id="dr-wrap-'+dr.id+'">';
+  h+='<div class="entity-header"><h5>'+esc(dr.hole_id||'Result #'+dr.id)+(dr.highlight==1?' <span style="color:#ffa657">&#9733;</span>':'')+'</h5>';
+  h+='<div style="display:flex;gap:6px"><button class="btn btn-xs btn-green" onclick="saveEntity(\'drill_results\','+dr.id+',\'dr-\','+dr.id+')">Save</button><button class="btn btn-xs btn-red" onclick="confirmDelete(\'drill_results\','+dr.id+',\''+esc(dr.hole_id||'Result').replace(/'/g,"\\'")+'\')">Delete</button></div></div>';
+  h+='<div class="form-row quad">';
+  h+='<div class="form-group"><label>Hole ID</label>'+inp('dr-hole_id-'+dr.id,dr.hole_id)+'</div>';
+  h+='<div class="form-group"><label>From (m)</label>'+inp('dr-from_m-'+dr.id,dr.from_m)+'</div>';
+  h+='<div class="form-group"><label>To (m)</label>'+inp('dr-to_m-'+dr.id,dr.to_m)+'</div>';
+  h+='<div class="form-group"><label>Interval (m)</label>'+inp('dr-interval_m-'+dr.id,dr.interval_m)+'</div></div>';
+  h+='<div class="form-row quad">';
+  h+='<div class="form-group"><label>Zone/Target</label>'+inp('dr-zone_target-'+dr.id,dr.zone_target)+'</div>';
+  h+='<div class="form-group"><label>Au (g/t)</label>'+inp('dr-au_gpt-'+dr.id,dr.au_gpt)+'</div>';
+  h+='<div class="form-group"><label>Ag (g/t)</label>'+inp('dr-ag_gpt-'+dr.id,dr.ag_gpt)+'</div>';
+  h+='<div class="form-group"><label>Cu (%)</label>'+inp('dr-cu_pct-'+dr.id,dr.cu_pct)+'</div></div>';
+  h+='<div class="form-row quad">';
+  h+='<div class="form-group"><label>Zn (%)</label>'+inp('dr-zn_pct-'+dr.id,dr.zn_pct)+'</div>';
+  h+='<div class="form-group"><label>Ni (%)</label>'+inp('dr-ni_pct-'+dr.id,dr.ni_pct)+'</div>';
+  h+='<div class="form-group"><label>Result Type</label>'+sel('dr-result_type-'+dr.id,['Assay','Composite','Weighted average'],dr.result_type)+'</div>';
+  h+='<div class="form-group"><label>Highlight</label>'+sel('dr-highlight-'+dr.id,['0','1'],String(dr.highlight||0))+'</div></div>';
+  h+='</div>';
+  return h;
+}
+
+function resourceEstimateHtml(re,commodities){
+  var h='<div class="entity-wrapper" id="re-wrap-'+re.id+'">';
+  h+='<div class="entity-header"><h5>Resource Estimate — '+esc(re.estimate_date||'No date')+'</h5>';
+  h+='<div style="display:flex;gap:6px"><button class="btn btn-xs btn-green" onclick="saveEstimateTonnes('+re.id+')">Save Tonnes</button><button class="btn btn-xs btn-red" onclick="confirmDelete(\'resource_estimates\','+re.id+',\'resource estimate\')">Delete Estimate</button></div></div>';
+
+  // Shared tonnes table
+  h+='<div style="margin:4px 0 8px;font-size:12px;color:#58a6ff;font-weight:600">Shared Tonnes</div>';
+  h+='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px"><thead><tr style="color:#8b949e;text-align:left"><th style="padding:4px 6px;border-bottom:1px solid #30363d">Category</th><th style="padding:4px 6px;border-bottom:1px solid #30363d">Tonnes (Mt)</th></tr></thead><tbody>';
+  var cats=[{l:'Measured',p:'measured'},{l:'Indicated',p:'indicated'},{l:'Inferred',p:'inferred'}];
+  cats.forEach(function(c){
+    h+='<tr><td style="padding:4px 6px;color:#c9d1d9">'+c.l+'</td>';
+    h+='<td style="padding:4px 6px">'+inp('re-'+c.p+'_tonnes-'+re.id,re[c.p+'_tonnes'])+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  h+='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:8px"><thead><tr style="color:#8b949e;text-align:left"><th style="padding:4px 6px;border-bottom:1px solid #30363d">Category</th><th style="padding:4px 6px;border-bottom:1px solid #30363d">Tonnes (Mt)</th></tr></thead><tbody>';
+  var res=[{l:'Proven',p:'proven'},{l:'Probable',p:'probable'}];
+  res.forEach(function(c){
+    h+='<tr><td style="padding:4px 6px;color:#c9d1d9">'+c.l+'</td>';
+    h+='<td style="padding:4px 6px">'+inp('re-'+c.p+'_tonnes-'+re.id,re[c.p+'_tonnes'])+'</td></tr>';
+  });
+  h+='</tbody></table>';
+
+  // Metadata fields
+  h+='<div class="form-row">';
+  h+='<div class="form-group"><label>Cutoff/Assumptions</label>'+inp('re-cutoff_assumptions-'+re.id,re.cutoff_assumptions)+'</div>';
+  h+='<div class="form-group"><label>Prepared By</label>'+inp('re-prepared_by-'+re.id,re.prepared_by)+'</div></div>';
+  h+='<div class="form-row triple">';
+  h+='<div class="form-group"><label>Estimate Date</label>'+inp('re-estimate_date-'+re.id,re.estimate_date)+'</div>';
+  h+='<div class="form-group"><label>Compliance Code</label>'+inp('re-compliance_code-'+re.id,re.compliance_code)+'</div>';
+  h+='<div class="form-group"><label>Source URL</label>'+inp('re-source_url-'+re.id,re.source_url)+'</div></div>';
+  h+='<div class="form-row single"><div class="form-group"><label>Notes</label>'+ta('re-notes-'+re.id,re.notes)+'</div></div>';
+
+  // Commodity lines
+  h+='<div style="margin:12px 0 8px;border-top:1px solid #30363d;padding-top:12px">';
+  h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><span style="font-size:13px;color:#d29922;font-weight:600">Commodity Lines ('+commodities.length+')</span><button class="add-btn btn-xs" onclick="addCommodityLine('+re.id+')">+ Add Commodity</button></div>';
+
+  commodities.forEach(function(ec){
+    h+=commodityLineHtml(ec,re.id);
+  });
+
+  h+='</div>';
+  h+='</div>';
+  return h;
+}
+
+function commodityLineHtml(ec,reId){
+  var commodities=['Gold','Silver','Copper','Zinc','Lead','Nickel','Cobalt','Lithium','Uranium','Platinum','Palladium','Iron','Tin','Tungsten','Molybdenum','Gold Equivalent (AuEq)','Copper Equivalent (CuEq)','Silver Equivalent (AgEq)','Zinc Equivalent (ZnEq)'];
+  var gradeUnits=['g/t','%','lbs/ton','ppm'];
+  var containedUnits=['Moz','Mlbs','Mt','koz','klbs'];
+  var h='<div style="background:#161b22;border:1px solid #30363d;border-radius:6px;padding:10px;margin-bottom:8px" id="ec-wrap-'+ec.id+'">';
+  h+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">';
+  h+='<span style="color:#d29922;font-size:12px;font-weight:600">'+esc(ec.commodity||'Commodity')+'</span>';
+  h+='<div style="display:flex;gap:6px"><button class="btn btn-xs btn-green" onclick="saveCommodityLine('+ec.id+')">Save</button><button class="btn btn-xs btn-red" onclick="confirmDelete(\'estimate_commodities\','+ec.id+',\'commodity line\')">Delete</button></div>';
+  h+='</div>';
+  h+='<div class="form-row triple">';
+  h+='<div class="form-group"><label>Commodity</label>'+sel('ec-commodity-'+ec.id,commodities,ec.commodity)+'</div>';
+  h+='<div class="form-group"><label>Grade Unit</label>'+sel('ec-grade_unit-'+ec.id,gradeUnits,ec.grade_unit)+'</div>';
+  h+='<div class="form-group"><label>Contained Unit</label>'+sel('ec-contained_unit-'+ec.id,containedUnits,ec.contained_unit)+'</div></div>';
+
+  // Grade/Contained table for Resources
+  h+='<div style="margin:6px 0 2px;font-size:11px;color:#58a6ff;font-weight:600">Resources</div>';
+  h+='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px"><thead><tr style="color:#8b949e;text-align:left"><th style="padding:3px 6px;border-bottom:1px solid #30363d">Category</th><th style="padding:3px 6px;border-bottom:1px solid #30363d">Grade</th><th style="padding:3px 6px;border-bottom:1px solid #30363d">Contained</th><th style="padding:3px 6px;border-bottom:1px solid #30363d;width:30px"></th></tr></thead><tbody>';
+  var cats=[{l:'Measured',p:'measured'},{l:'Indicated',p:'indicated'},{l:'Inferred',p:'inferred'}];
+  cats.forEach(function(c){
+    h+='<tr><td style="padding:3px 6px;color:#c9d1d9">'+c.l+'</td>';
+    h+='<td style="padding:3px 6px">'+inp('ec-'+c.p+'_grade-'+ec.id,ec[c.p+'_grade'])+'</td>';
+    h+='<td style="padding:3px 6px">'+inp('ec-'+c.p+'_contained-'+ec.id,ec[c.p+'_contained'])+'</td>';
+    h+='<td style="padding:3px 6px"><button class="btn btn-xs" onclick="autoCalcContained('+ec.id+',\''+c.p+'\','+reId+')" title="Auto-calculate contained" style="font-size:10px;padding:2px 5px">Calc</button></td></tr>';
+  });
+  h+='</tbody></table>';
+
+  // Reserves
+  h+='<div style="margin:6px 0 2px;font-size:11px;color:#d29922;font-weight:600">Reserves</div>';
+  h+='<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:#8b949e;text-align:left"><th style="padding:3px 6px;border-bottom:1px solid #30363d">Category</th><th style="padding:3px 6px;border-bottom:1px solid #30363d">Grade</th><th style="padding:3px 6px;border-bottom:1px solid #30363d">Contained</th><th style="padding:3px 6px;border-bottom:1px solid #30363d;width:30px"></th></tr></thead><tbody>';
+  var res=[{l:'Proven',p:'proven'},{l:'Probable',p:'probable'}];
+  res.forEach(function(c){
+    h+='<tr><td style="padding:3px 6px;color:#c9d1d9">'+c.l+'</td>';
+    h+='<td style="padding:3px 6px">'+inp('ec-'+c.p+'_grade-'+ec.id,ec[c.p+'_grade'])+'</td>';
+    h+='<td style="padding:3px 6px">'+inp('ec-'+c.p+'_contained-'+ec.id,ec[c.p+'_contained'])+'</td>';
+    h+='<td style="padding:3px 6px"><button class="btn btn-xs" onclick="autoCalcContained('+ec.id+',\''+c.p+'\','+reId+')" title="Auto-calculate contained" style="font-size:10px;padding:2px 5px">Calc</button></td></tr>';
+  });
+  h+='</tbody></table>';
+  h+='</div>';
+  return h;
+}
+
+function ownershipHtml(oh){
+  var h='<div class="entity-wrapper" id="oh-wrap-'+oh.id+'">';
+  h+='<div class="entity-header"><h5>'+esc(oh.event_type||'Record')+' — '+esc(oh.date_or_period||'')+'</h5>';
+  h+='<div style="display:flex;gap:6px"><button class="btn btn-xs btn-green" onclick="saveEntity(\'ownership_history\','+oh.id+',\'oh-\','+oh.id+')">Save</button><button class="btn btn-xs btn-red" onclick="confirmDelete(\'ownership_history\','+oh.id+',\'ownership record\')">Delete</button></div></div>';
+  h+='<div class="form-row">';
+  h+='<div class="form-group"><label>Event Type</label>'+sel('oh-event_type-'+oh.id,['Staking','Acquisition','Option agreement','JV','Royalty grant','Transfer','Divestiture','Earn-in'],oh.event_type)+'</div>';
+  h+='<div class="form-group"><label>Date/Period</label>'+inp('oh-date_or_period-'+oh.id,oh.date_or_period)+'</div></div>';
+  h+='<div class="form-row">';
+  h+='<div class="form-group"><label>Counterparties</label>'+inp('oh-counterparties-'+oh.id,oh.counterparties)+'</div>';
+  h+='<div class="form-group"><label>Interest Details</label>'+inp('oh-interest_details-'+oh.id,oh.interest_details)+'</div></div>';
+  h+='<div class="form-row single"><div class="form-group"><label>Terms</label>'+ta('oh-terms-'+oh.id,oh.terms)+'</div></div>';
+  h+='</div>';
+  return h;
+}
+
+function explorationHtml(ep){
+  var h='<div class="entity-wrapper" id="ep-wrap-'+ep.id+'">';
+  h+='<div class="entity-header"><h5>'+esc(ep.program_type||'Program')+' — '+esc(ep.year||'')+'</h5>';
+  h+='<div style="display:flex;gap:6px"><button class="btn btn-xs btn-green" onclick="saveEntity(\'exploration_programs\','+ep.id+',\'ep-\','+ep.id+')">Save</button><button class="btn btn-xs btn-red" onclick="confirmDelete(\'exploration_programs\','+ep.id+',\'exploration program\')">Delete</button></div></div>';
+  h+='<div class="form-row">';
+  h+='<div class="form-group"><label>Program Type</label>'+sel('ep-program_type-'+ep.id,['Soil sampling','Geophysics','Mapping','Trenching','Geochemistry'],ep.program_type)+'</div>';
+  h+='<div class="form-group"><label>Year</label>'+inp('ep-year-'+ep.id,ep.year)+'</div></div>';
+  h+='<div class="form-row single"><div class="form-group"><label>Description</label>'+ta('ep-description-'+ep.id,ep.description)+'</div></div>';
+  h+='<div class="form-row single"><div class="form-group"><label>Results</label>'+ta('ep-results-'+ep.id,ep.results)+'</div></div>';
+  h+='</div>';
+  return h;
+}
+
+function nearbyMineHtml(nm){
+  var h='<div class="entity-wrapper" id="nm-wrap-'+nm.id+'">';
+  h+='<div class="entity-header"><h5>'+esc(nm.nearby_name||'Mine')+'</h5>';
+  h+='<div style="display:flex;gap:6px"><button class="btn btn-xs btn-green" onclick="saveEntity(\'nearby_mines\','+nm.id+',\'nm-\','+nm.id+')">Save</button><button class="btn btn-xs btn-red" onclick="confirmDelete(\'nearby_mines\','+nm.id+',\'nearby mine\')">Delete</button></div></div>';
+  h+='<div class="form-row triple">';
+  h+='<div class="form-group"><label>Mine Name</label>'+inp('nm-nearby_name-'+nm.id,nm.nearby_name)+'</div>';
+  h+='<div class="form-group"><label>Operator</label>'+inp('nm-owner_operator-'+nm.id,nm.owner_operator)+'</div>';
+  h+='<div class="form-group"><label>Distance</label>'+inp('nm-distance-'+nm.id,nm.distance)+'</div></div>';
+  h+='<div class="form-row">';
+  h+='<div class="form-group"><label>Commodity</label>'+inp('nm-commodity-'+nm.id,nm.commodity)+'</div>';
+  h+='<div class="form-group"><label>Relevance</label>'+inp('nm-relevance-'+nm.id,nm.relevance)+'</div></div>';
+  h+='</div>';
+  return h;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// SAVE / DELETE / ADD
+// ═══════════════════════════════════════════════════════════════════
+function saveCompanyFields(cid){
+  var data={name:document.getElementById('co-name').value.trim(),ticker:document.getElementById('co-ticker').value.trim(),exchange:document.getElementById('co-exchange').value,website:document.getElementById('co-website').value.trim(),description:document.getElementById('co-desc').value.trim()};
+  apiPut('/companies/'+cid,data).then(function(d){
+    if(d.error){toast('Error: '+d.error,'#da3633');return}
+    toast('Company saved!');
+    loadCompanyDetail(cid);
+  });
+}
+
+function saveEntity(table,id,prefix,eid){
+  // Collect all form fields matching prefix+fieldname-eid
+  var wrapper=null;
+  var prefixMap={
+    'prop-':{el:'prop-',fields:['name','jurisdiction','country','primary_metals','status','current_interest','size_ha','mineralization_type','latitude','longitude','current_owner','royalty_notes'],extra:{company_id:detailCompanyId}},
+    'dp-':{el:'dp-',fields:['program_name','year','drill_type','operator','planned_holes','planned_meters','actual_holes','actual_meters','objectives','source_url']},
+    'dr-':{el:'dr-',fields:['hole_id','from_m','to_m','interval_m','zone_target','au_gpt','ag_gpt','cu_pct','zn_pct','ni_pct','result_type','highlight']},
+    're-':{el:'re-',fields:['measured_tonnes','indicated_tonnes','inferred_tonnes','proven_tonnes','probable_tonnes','cutoff_assumptions','prepared_by','estimate_date','compliance_code','source_url','notes']},
+    'oh-':{el:'oh-',fields:['event_type','date_or_period','counterparties','interest_details','terms']},
+    'ep-':{el:'ep-',fields:['program_type','year','description','results']},
+    'nm-':{el:'nm-',fields:['nearby_name','owner_operator','distance','commodity','relevance']}
+  };
+  var cfg=prefixMap[prefix];
+  if(!cfg){toast('Unknown prefix','#da3633');return}
+  var data=cfg.extra?Object.assign({},cfg.extra):{};
+  cfg.fields.forEach(function(f){
+    var el=document.getElementById(prefix+f+'-'+eid);
+    if(el)data[f]=el.value;
+  });
+  apiPut('/'+table+'/'+id,data).then(function(d){
+    if(d.error){toast('Error: '+d.error,'#da3633');return}
+    toast('Saved!');
+  });
+}
+
+function saveEstimateTonnes(reId){
+  var data={
+    measured_tonnes:document.getElementById('re-measured_tonnes-'+reId).value,
+    indicated_tonnes:document.getElementById('re-indicated_tonnes-'+reId).value,
+    inferred_tonnes:document.getElementById('re-inferred_tonnes-'+reId).value,
+    proven_tonnes:document.getElementById('re-proven_tonnes-'+reId).value,
+    probable_tonnes:document.getElementById('re-probable_tonnes-'+reId).value,
+    cutoff_assumptions:document.getElementById('re-cutoff_assumptions-'+reId).value,
+    prepared_by:document.getElementById('re-prepared_by-'+reId).value,
+    estimate_date:document.getElementById('re-estimate_date-'+reId).value,
+    compliance_code:document.getElementById('re-compliance_code-'+reId).value,
+    source_url:document.getElementById('re-source_url-'+reId).value,
+    notes:document.getElementById('re-notes-'+reId).value
+  };
+  apiPut('/resource_estimates/'+reId,data).then(function(d){
+    if(d.error){toast('Error: '+d.error,'#da3633');return}
+    toast('Estimate tonnes saved!');
+  });
+}
+
+function saveCommodityLine(ecId){
+  var fields=['commodity','grade_unit','contained_unit','measured_grade','measured_contained','indicated_grade','indicated_contained','inferred_grade','inferred_contained','proven_grade','proven_contained','probable_grade','probable_contained'];
+  var data={};
+  fields.forEach(function(f){
+    var el=document.getElementById('ec-'+f+'-'+ecId);
+    if(el)data[f]=el.value;
+  });
+  apiPut('/estimate_commodities/'+ecId,data).then(function(d){
+    if(d.error){toast('Error: '+d.error,'#da3633');return}
+    toast('Commodity line saved!');
+  });
+}
+
+function addCommodityLine(reId){
+  apiPost('/estimate_commodities',{estimate_id:reId,commodity:'Gold',grade_unit:'g/t',contained_unit:'Moz'}).then(function(d){
+    if(d.error){toast('Error: '+d.error,'#da3633');return}
+    toast('Commodity line added!');
+    loadCompanyDetail(detailCompanyId);
+  });
+}
+
+function autoCalcContained(ecId,category,reId){
+  var gradeUnit=document.getElementById('ec-grade_unit-'+ecId).value;
+  var containedUnit=document.getElementById('ec-contained_unit-'+ecId).value;
+  var gradeEl=document.getElementById('ec-'+category+'_grade-'+ecId);
+  var containedEl=document.getElementById('ec-'+category+'_contained-'+ecId);
+  var tonnesEl=document.getElementById('re-'+category+'_tonnes-'+reId);
+
+  if(!gradeEl||!containedEl||!tonnesEl)return;
+  var grade=parseFloat(gradeEl.value);
+  var tonnes=parseFloat(tonnesEl.value);
+  if(isNaN(grade)||isNaN(tonnes)||tonnes===0){toast('Enter tonnes and grade first','#da3633');return}
+
+  var contained=0;
+  if(gradeUnit==='g/t'||gradeUnit==='ppm'){
+    // g/t -> Moz: tonnes(Mt) * grade / 31.1035
+    // g/t -> koz: tonnes(Mt) * grade * 1000 / 31.1035
+    // g/t -> Mt: tonnes(Mt) * grade / 1000000
+    // g/t -> Mlbs: tonnes(Mt) * grade * 0.0022046 (grams to lbs, millions)
+    if(containedUnit==='Moz')contained=tonnes*grade/31.1035;
+    else if(containedUnit==='koz')contained=tonnes*grade*1000/31.1035;
+    else if(containedUnit==='Mt')contained=tonnes*grade/1000000;
+    else if(containedUnit==='Mlbs')contained=tonnes*grade*0.00220462;
+    else if(containedUnit==='klbs')contained=tonnes*grade*2.20462;
+  } else if(gradeUnit==='%'){
+    // % -> Mlbs: tonnes(Mt) * grade% * 22.0462
+    // % -> Mt: tonnes(Mt) * grade / 100
+    // % -> klbs: tonnes(Mt) * grade * 22046.2
+    // % -> Moz: tonnes(Mt) * grade * 10000 / 31.1035
+    if(containedUnit==='Mlbs')contained=tonnes*grade*22.0462;
+    else if(containedUnit==='Mt')contained=tonnes*grade/100;
+    else if(containedUnit==='klbs')contained=tonnes*grade*22046.2;
+    else if(containedUnit==='Moz')contained=tonnes*grade*10000/31.1035;
+    else if(containedUnit==='koz')contained=tonnes*grade*10000000/31.1035;
+  } else if(gradeUnit==='lbs/ton'){
+    // lbs/ton -> Mlbs: tonnes(Mt) * grade * 0.001
+    if(containedUnit==='Mlbs')contained=tonnes*grade*0.001;
+    else if(containedUnit==='klbs')contained=tonnes*grade;
+    else if(containedUnit==='Mt')contained=tonnes*grade*0.000000453592;
+  }
+
+  containedEl.value=contained?contained.toFixed(4):'0';
+  toast('Calculated: '+contained.toFixed(4)+' '+containedUnit);
+}
+
+function confirmDelete(table,id,label){
+  document.getElementById('delete-msg').textContent='Delete "'+label+'"? This cannot be undone.';
+  document.getElementById('delete-confirm-btn').onclick=function(){
+    apiDelete('/'+table+'/'+id).then(function(d){
+      if(d.error){toast('Error: '+d.error,'#da3633');return}
+      toast('Deleted!');
+      closeModal('delete-modal');
+      loadCompanyDetail(detailCompanyId);
+    });
+  };
+  document.getElementById('delete-modal').classList.add('show');
+}
+
+function confirmDeleteCompany(cid,name){
+  document.getElementById('delete-msg').textContent='Delete company "'+name+'" and ALL its data? This cannot be undone.';
+  document.getElementById('delete-confirm-btn').onclick=function(){
+    apiDelete('/companies/'+cid).then(function(d){
+      if(d.error){toast('Error: '+d.error,'#da3633');return}
+      toast('Company deleted!');
+      closeModal('delete-modal');
+      loadCompanyList();
+    });
+  };
+  document.getElementById('delete-modal').classList.add('show');
+}
+
+// ─── Add new entities ───────────────────────────────────────────────
+function showAddProperty(companyId){
+  var name=prompt('Property name:');
+  if(!name)return;
+  apiPost('/properties',{name:name,company_id:companyId}).then(function(d){
+    if(d.error){toast('Error: '+d.error,'#da3633');return}
+    toast('Property added!');
+    loadCompanyDetail(companyId);
+  });
+}
+
+function showAddDrillProgram(propId){
+  var name=prompt('Program name (e.g. "2024 Phase 1 Diamond Drilling"):');
+  if(!name)return;
+  apiPost('/drill_programs',{program_name:name,property_id:propId}).then(function(d){
+    if(d.error){toast('Error: '+d.error,'#da3633');return}
+    toast('Drill program added!');
+    loadCompanyDetail(detailCompanyId);
+  });
+}
+
+function showAddDrillResult(dpId,propId){
+  var holeId=prompt('Hole ID (e.g. GC-24-001):');
+  if(!holeId)return;
+  apiPost('/drill_results',{hole_id:holeId,drill_program_id:dpId,property_id:propId,from_m:0,to_m:0}).then(function(d){
+    if(d.error){toast('Error: '+d.error,'#da3633');return}
+    toast('Drill result added!');
+    loadCompanyDetail(detailCompanyId);
+  });
+}
+
+function showAddResource(propId){
+  apiPost('/resource_estimates',{property_id:propId}).then(function(d){
+    if(d.error){toast('Error: '+d.error,'#da3633');return}
+    // Also add a default commodity line
+    var reId=d.id;
+    apiPost('/estimate_commodities',{estimate_id:reId,commodity:'Gold',grade_unit:'g/t',contained_unit:'Moz'}).then(function(d2){
+      toast('Resource estimate added with Gold commodity!');
+      loadCompanyDetail(detailCompanyId);
+    });
+  });
+}
+
+function showAddOwnership(propId){
+  apiPost('/ownership_history',{property_id:propId,event_type:'Staking'}).then(function(d){
+    if(d.error){toast('Error: '+d.error,'#da3633');return}
+    toast('Ownership record added!');
+    loadCompanyDetail(detailCompanyId);
+  });
+}
+
+function showAddExploration(propId){
+  apiPost('/exploration_programs',{property_id:propId,program_type:'Soil sampling'}).then(function(d){
+    if(d.error){toast('Error: '+d.error,'#da3633');return}
+    toast('Exploration program added!');
+    loadCompanyDetail(detailCompanyId);
+  });
+}
+
+function showAddNearbyMine(propId){
+  var name=prompt('Nearby mine name:');
+  if(!name)return;
+  apiPost('/nearby_mines',{property_id:propId,nearby_name:name}).then(function(d){
+    if(d.error){toast('Error: '+d.error,'#da3633');return}
+    toast('Nearby mine added!');
+    loadCompanyDetail(detailCompanyId);
+  });
+}
+</script>
+</body>
+</html>

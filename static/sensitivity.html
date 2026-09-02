@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Economic Sensitivity Analysis - MineTerminal</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0a0e17; color:#e0e0e0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }
+.header { background:#111827; border-bottom:1px solid #1f2937; padding:16px 24px; display:flex; align-items:center; gap:16px; }
+.header a { color:#f59e0b; text-decoration:none; font-weight:600; }
+.header h1 { font-size:18px; color:#f59e0b; }
+.header .badge { background:#1e3a5f; color:#60a5fa; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:600; }
+.container { max-width:1200px; margin:0 auto; padding:24px; }
+.study-info { background:#111827; border:1px solid #1f2937; border-radius:12px; padding:20px; margin-bottom:24px; }
+.study-info h2 { color:#f59e0b; font-size:20px; margin-bottom:8px; }
+.study-info .meta { color:#9ca3af; font-size:14px; }
+.outputs { display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px; }
+.output-card { background:#111827; border:1px solid #1f2937; border-radius:12px; padding:20px; text-align:center; }
+.output-card .label { color:#9ca3af; font-size:12px; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; }
+.output-card .value { font-size:32px; font-weight:700; }
+.output-card .base { color:#6b7280; font-size:12px; margin-top:4px; }
+.output-card .change { font-size:14px; margin-top:4px; font-weight:600; }
+.output-card .change.pos { color:#10b981; }
+.output-card .change.neg { color:#ef4444; }
+.npv-val { color:#10b981; }
+.irr-val { color:#60a5fa; }
+.payback-val { color:#f59e0b; }
+.sliders { background:#111827; border:1px solid #1f2937; border-radius:12px; padding:20px; }
+.sliders h3 { color:#e5e7eb; font-size:16px; margin-bottom:16px; border-bottom:1px solid #1f2937; padding-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
+.slider-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:20px; }
+.slider-group { padding:12px; background:#0d1117; border-radius:8px; border:1px solid #1f2937; }
+.slider-group label { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; font-size:13px; color:#9ca3af; }
+.slider-group label .val { color:#f59e0b; font-weight:600; font-size:14px; }
+.slider-group input[type=range] { width:100%; height:6px; -webkit-appearance:none; background:#1f2937; border-radius:3px; outline:none; }
+.slider-group input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:18px; height:18px; background:#f59e0b; border-radius:50%; cursor:pointer; }
+.slider-group .range-labels { display:flex; justify-content:space-between; font-size:11px; color:#6b7280; margin-top:4px; }
+.reset-btn { background:#1f2937; color:#e5e7eb; border:1px solid #374151; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px; }
+.reset-btn:hover { background:#374151; }
+.assumptions { background:#111827; border:1px solid #1f2937; border-radius:12px; padding:20px; margin-top:24px; }
+.assumptions h3 { color:#e5e7eb; font-size:16px; margin-bottom:12px; }
+.assumptions-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+.assumption-item { background:#0d1117; padding:10px; border-radius:6px; border:1px solid #1f2937; }
+.assumption-item .alabel { color:#6b7280; font-size:11px; text-transform:uppercase; }
+.assumption-item .aval { color:#e5e7eb; font-size:15px; font-weight:600; margin-top:2px; }
+.loading { text-align:center; padding:60px; color:#9ca3af; font-size:18px; }
+@media(max-width:768px) { .slider-grid,.outputs,.assumptions-grid { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<div class="header">
+    <a href="/" id="backLink">&larr; Back to Portal</a>
+    <h1 id="pageTitle">Economic Sensitivity Analysis</h1>
+    <span class="badge" id="studyBadge"></span>
+</div>
+<div class="container">
+    <div id="content"><div class="loading">Loading study data...</div></div>
+</div>
+<script>
+var studyId = window.location.pathname.split('/').pop();
+var BASE = {};
+
+function fmt(n, dec) {
+    dec = dec || 0;
+    if (n === null || n === undefined) return 'N/A';
+    if (Math.abs(n) >= 1e9) return '$' + (n/1e9).toFixed(1) + 'B';
+    if (Math.abs(n) >= 1e6) return '$' + (n/1e6).toFixed(dec||0) + 'M';
+    if (Math.abs(n) >= 1e3) return '$' + (n/1e3).toFixed(0) + 'K';
+    return '$' + n.toFixed(dec);
+}
+
+function pctChange(nv, ov) {
+    if (!ov) return '';
+    var pct = ((nv - ov) / Math.abs(ov) * 100).toFixed(1);
+    var cls = pct >= 0 ? 'pos' : 'neg';
+    var sign = pct >= 0 ? '+' : '';
+    return '<span class="change ' + cls + '">' + sign + pct + '% vs base</span>';
+}
+
+function recalculate() {
+    var s = BASE;
+    var price = parseFloat(document.getElementById('sl_price').value);
+    var discount = parseFloat(document.getElementById('sl_discount').value);
+    var recovery = parseFloat(document.getElementById('sl_recovery').value);
+    var grade = parseFloat(document.getElementById('sl_grade').value);
+    var capex = parseFloat(document.getElementById('sl_capex').value);
+    var opex = parseFloat(document.getElementById('sl_opex').value);
+    var throughput = parseFloat(document.getElementById('sl_throughput').value);
+    var minelife = parseFloat(document.getElementById('sl_minelife').value);
+
+    document.getElementById('v_price').textContent = '$' + price.toLocaleString() + '/oz';
+    document.getElementById('v_discount').textContent = discount.toFixed(1) + '%';
+    document.getElementById('v_recovery').textContent = recovery.toFixed(1) + '%';
+    document.getElementById('v_grade').textContent = grade.toFixed(2) + ' ' + (s.head_grade_unit||'g/t');
+    document.getElementById('v_capex').textContent = fmt(capex);
+    document.getElementById('v_opex').textContent = '$' + opex.toFixed(0) + '/t';
+    document.getElementById('v_throughput').textContent = throughput.toLocaleString() + ' tpd';
+    document.getElementById('v_minelife').textContent = minelife.toFixed(1) + ' yrs';
+
+    // Revenue scale factor
+    var baseRevFactor = s.commodity_price * s.head_grade * (s.recovery_rate/100) * s.throughput_tpd;
+    var newRevFactor = price * grade * (recovery/100) * throughput;
+    var revRatio = baseRevFactor > 0 ? newRevFactor / baseRevFactor : 1;
+
+    var r = discount / 100;
+    var baseR = s.discount_rate / 100;
+    var annuityNew = r > 0 ? (1 - Math.pow(1+r, -minelife)) / r : minelife;
+    var annuityBase = baseR > 0 ? (1 - Math.pow(1+baseR, -s.mine_life_years)) / baseR : s.mine_life_years;
+
+    var baseNPV = s.after_tax_npv || s.base_case_npv;
+    var baseCapex = s.initial_capex;
+    var baseOpexAnnual = s.operating_cost_per_tonne * s.throughput_tpd * 365;
+
+    var baseAnnualCF = annuityBase > 0 ? (baseNPV + baseCapex) / annuityBase : 0;
+    var baseAnnualRevenue = baseAnnualCF + baseOpexAnnual;
+
+    var newAnnualRevenue = baseAnnualRevenue * revRatio;
+    var newAnnualOpex = opex * throughput * 365;
+    var newAnnualCF = newAnnualRevenue - newAnnualOpex;
+    var newNPV = newAnnualCF * annuityNew - capex;
+
+    // IRR via Newton's method
+    var guess = 0.2;
+    for (var iter = 0; iter < 50; iter++) {
+        var npvG = 0, dnpv = 0;
+        for (var t = 1; t <= minelife; t++) {
+            var df = Math.pow(1+guess, -t);
+            npvG += newAnnualCF * df;
+            dnpv += -t * newAnnualCF * Math.pow(1+guess, -(t+1));
+        }
+        npvG -= capex;
+        if (Math.abs(dnpv) < 1e-10) break;
+        var ng = guess - npvG / dnpv;
+        if (Math.abs(ng - guess) < 1e-8) { guess = ng; break; }
+        guess = ng;
+        if (guess < -0.99) { guess = -0.5; break; }
+        if (guess > 10) { guess = 5; break; }
+    }
+    var newIRR = guess * 100;
+
+    // Payback
+    var cumCF = -capex, payback = minelife;
+    for (var t = 1; t <= minelife; t++) {
+        cumCF += newAnnualCF;
+        if (cumCF >= 0) { payback = t - (cumCF / newAnnualCF); break; }
+    }
+
+    var baseIRRref = s.after_tax_irr || s.base_case_irr;
+    var basePaybackRef = s.after_tax_payback || s.base_case_payback;
+
+    document.getElementById('out_npv').innerHTML = fmt(newNPV);
+    document.getElementById('out_npv_change').innerHTML = pctChange(newNPV, baseNPV);
+    document.getElementById('out_irr').innerHTML = newIRR.toFixed(1) + '%';
+    document.getElementById('out_irr_change').innerHTML = pctChange(newIRR, baseIRRref);
+    document.getElementById('out_payback').innerHTML = payback.toFixed(1) + ' yrs';
+    document.getElementById('out_payback_change').innerHTML = pctChange(payback, basePaybackRef);
+}
+
+function resetSliders() {
+    var s = BASE;
+    document.getElementById('sl_price').value = s.commodity_price;
+    document.getElementById('sl_discount').value = s.discount_rate;
+    document.getElementById('sl_recovery').value = s.recovery_rate;
+    document.getElementById('sl_grade').value = s.head_grade;
+    document.getElementById('sl_capex').value = s.initial_capex;
+    document.getElementById('sl_opex').value = s.operating_cost_per_tonne;
+    document.getElementById('sl_throughput').value = s.throughput_tpd;
+    document.getElementById('sl_minelife').value = s.mine_life_years;
+    recalculate();
+}
+
+fetch('/api/economic_studies/' + studyId)
+.then(function(r) { return r.json(); })
+.then(function(s) {
+    BASE = s;
+    document.getElementById('pageTitle').textContent = s.property_name + ' - Sensitivity Analysis';
+    document.getElementById('studyBadge').textContent = s.study_type;
+    document.getElementById('backLink').href = '/properties/' + s.property_id;
+    document.getElementById('backLink').textContent = '\u2190 Back to ' + s.property_name;
+
+    var baseNPV = s.after_tax_npv || s.base_case_npv;
+    var baseIRR = s.after_tax_irr || s.base_case_irr;
+    var basePayback = s.after_tax_payback || s.base_case_payback;
+
+    var priceMin = Math.round(s.commodity_price * 0.5);
+    var priceMax = Math.round(s.commodity_price * 2.0);
+    var capexMin = Math.round(s.initial_capex * 0.5);
+    var capexMax = Math.round(s.initial_capex * 2.0);
+    var gradeMin = (s.head_grade*0.5).toFixed(2);
+    var gradeMax = (s.head_grade*2).toFixed(2);
+    var opexMin = Math.round(s.operating_cost_per_tonne*0.5);
+    var opexMax = Math.round(s.operating_cost_per_tonne*2);
+    var tpdMin = Math.round(s.throughput_tpd*0.5);
+    var tpdMax = Math.round(s.throughput_tpd*2);
+    var tpdStep = Math.round(s.throughput_tpd*0.05);
+    var capexStep = Math.round(s.initial_capex*0.02);
+    var mlMax = Math.round(s.mine_life_years*2.5);
+
+    document.getElementById('content').innerHTML =
+    '<div class="study-info">' +
+    '<h2>' + s.property_name + ' <span style="color:#60a5fa">(' + s.ticker + ')</span></h2>' +
+    '<div class="meta">' + s.study_type + ' &bull; ' + s.commodity + ' &bull; ' + (s.study_date||'N/A') + ' &bull; ' + s.currency + ' &bull; ' + (s.notes||'') + '</div>' +
+    '</div>' +
+
+    '<div class="outputs">' +
+    '<div class="output-card"><div class="label">Net Present Value (NPV)</div><div class="value npv-val" id="out_npv">' + fmt(baseNPV) + '</div><div class="base">Base: ' + fmt(baseNPV) + ' @ ' + s.discount_rate + '% discount</div><div id="out_npv_change"></div></div>' +
+    '<div class="output-card"><div class="label">Internal Rate of Return (IRR)</div><div class="value irr-val" id="out_irr">' + baseIRR + '%</div><div class="base">Base: ' + baseIRR + '%</div><div id="out_irr_change"></div></div>' +
+    '<div class="output-card"><div class="label">Payback Period</div><div class="value payback-val" id="out_payback">' + basePayback + ' yrs</div><div class="base">Base: ' + basePayback + ' years</div><div id="out_payback_change"></div></div>' +
+    '</div>' +
+
+    '<div class="sliders"><h3>Adjust Assumptions <button class="reset-btn" onclick="resetSliders()">Reset to Base Case</button></h3><div class="slider-grid">' +
+
+    '<div class="slider-group"><label>' + s.commodity + ' Price <span class="val" id="v_price">$' + s.commodity_price.toLocaleString() + '/oz</span></label><input type="range" id="sl_price" min="' + priceMin + '" max="' + priceMax + '" step="25" value="' + s.commodity_price + '" oninput="recalculate()"><div class="range-labels"><span>$' + priceMin + '</span><span>$' + priceMax + '</span></div></div>' +
+
+    '<div class="slider-group"><label>Discount Rate <span class="val" id="v_discount">' + s.discount_rate + '%</span></label><input type="range" id="sl_discount" min="0" max="15" step="0.5" value="' + s.discount_rate + '" oninput="recalculate()"><div class="range-labels"><span>0%</span><span>15%</span></div></div>' +
+
+    '<div class="slider-group"><label>Recovery Rate <span class="val" id="v_recovery">' + s.recovery_rate + '%</span></label><input type="range" id="sl_recovery" min="70" max="99" step="0.5" value="' + s.recovery_rate + '" oninput="recalculate()"><div class="range-labels"><span>70%</span><span>99%</span></div></div>' +
+
+    '<div class="slider-group"><label>Head Grade <span class="val" id="v_grade">' + s.head_grade + ' ' + (s.head_grade_unit||'g/t') + '</span></label><input type="range" id="sl_grade" min="' + gradeMin + '" max="' + gradeMax + '" step="0.05" value="' + s.head_grade + '" oninput="recalculate()"><div class="range-labels"><span>' + gradeMin + '</span><span>' + gradeMax + '</span></div></div>' +
+
+    '<div class="slider-group"><label>Initial CapEx <span class="val" id="v_capex">' + fmt(s.initial_capex) + '</span></label><input type="range" id="sl_capex" min="' + capexMin + '" max="' + capexMax + '" step="' + capexStep + '" value="' + s.initial_capex + '" oninput="recalculate()"><div class="range-labels"><span>' + fmt(capexMin) + '</span><span>' + fmt(capexMax) + '</span></div></div>' +
+
+    '<div class="slider-group"><label>OpEx per Tonne <span class="val" id="v_opex">$' + s.operating_cost_per_tonne + '/t</span></label><input type="range" id="sl_opex" min="' + opexMin + '" max="' + opexMax + '" step="1" value="' + s.operating_cost_per_tonne + '" oninput="recalculate()"><div class="range-labels"><span>$' + opexMin + '</span><span>$' + opexMax + '</span></div></div>' +
+
+    '<div class="slider-group"><label>Throughput <span class="val" id="v_throughput">' + s.throughput_tpd.toLocaleString() + ' tpd</span></label><input type="range" id="sl_throughput" min="' + tpdMin + '" max="' + tpdMax + '" step="' + tpdStep + '" value="' + s.throughput_tpd + '" oninput="recalculate()"><div class="range-labels"><span>' + tpdMin + '</span><span>' + tpdMax + '</span></div></div>' +
+
+    '<div class="slider-group"><label>Mine Life <span class="val" id="v_minelife">' + s.mine_life_years + ' yrs</span></label><input type="range" id="sl_minelife" min="3" max="' + mlMax + '" step="0.5" value="' + s.mine_life_years + '" oninput="recalculate()"><div class="range-labels"><span>3 yrs</span><span>' + mlMax + ' yrs</span></div></div>' +
+
+    '</div></div>' +
+
+    '<div class="assumptions"><h3>Base Case Assumptions</h3><div class="assumptions-grid">' +
+    '<div class="assumption-item"><div class="alabel">Study Type</div><div class="aval">' + s.study_type + '</div></div>' +
+    '<div class="assumption-item"><div class="alabel">Commodity</div><div class="aval">' + s.commodity + '</div></div>' +
+    '<div class="assumption-item"><div class="alabel">Base Price</div><div class="aval">$' + (s.commodity_price||0).toLocaleString() + ' ' + (s.commodity_price_unit||'') + '</div></div>' +
+    '<div class="assumption-item"><div class="alabel">Discount Rate</div><div class="aval">' + s.discount_rate + '%</div></div>' +
+    '<div class="assumption-item"><div class="alabel">Mine Life</div><div class="aval">' + s.mine_life_years + ' years</div></div>' +
+    '<div class="assumption-item"><div class="alabel">Throughput</div><div class="aval">' + (s.throughput_tpd||0).toLocaleString() + ' tpd</div></div>' +
+    '<div class="assumption-item"><div class="alabel">Recovery</div><div class="aval">' + s.recovery_rate + '%</div></div>' +
+    '<div class="assumption-item"><div class="alabel">Head Grade</div><div class="aval">' + s.head_grade + ' ' + (s.head_grade_unit||'g/t') + '</div></div>' +
+    '<div class="assumption-item"><div class="alabel">Initial CapEx</div><div class="aval">' + fmt(s.initial_capex) + '</div></div>' +
+    '<div class="assumption-item"><div class="alabel">Sustaining CapEx</div><div class="aval">' + fmt(s.sustaining_capex) + '</div></div>' +
+    '<div class="assumption-item"><div class="alabel">OpEx/Tonne</div><div class="aval">$' + s.operating_cost_per_tonne + '</div></div>' +
+    '<div class="assumption-item"><div class="alabel">AISC</div><div class="aval">$' + s.aisc + ' ' + (s.commodity_price_unit||'') + '</div></div>' +
+    '<div class="assumption-item"><div class="alabel">Pre-Tax NPV</div><div class="aval">' + fmt(s.base_case_npv) + '</div></div>' +
+    '<div class="assumption-item"><div class="alabel">Pre-Tax IRR</div><div class="aval">' + s.base_case_irr + '%</div></div>' +
+    '<div class="assumption-item"><div class="alabel">After-Tax NPV</div><div class="aval">' + fmt(s.after_tax_npv) + '</div></div>' +
+    '<div class="assumption-item"><div class="alabel">After-Tax IRR</div><div class="aval">' + s.after_tax_irr + '%</div></div>' +
+    '</div></div>';
+})
+.catch(function(err) {
+    document.getElementById('content').innerHTML = '<div class="loading">Error loading study: ' + err.message + '</div>';
+});
+</script>
+</body>
+</html>
