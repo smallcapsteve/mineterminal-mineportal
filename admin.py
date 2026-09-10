@@ -65,7 +65,11 @@ TABLES = {
                     # MP_SEDAR_COLUMN_V1: the CSE's 9-digit SEDAR profile id. The
                     # filings themselves are fetched from the CSE in the browser;
                     # only the key is stored.
-                    'sedar_profile_id','sedar_source','sedar_updated_at'],
+                    'sedar_profile_id','sedar_source','sedar_updated_at',
+                    # MP_LISTING_STATUS_V1: NULL/'active' = listed; 'acquired',
+                    # 'delisted', 'cease_traded', 'not_mining' hide the company from
+                    # the public /api/companies list. Set back to NULL to un-hide.
+                    'listing_status','listing_status_note','listing_status_updated_at'],
         'required': ['ticker','name'],
         'fk': {},
         'display_col': 'name',

@@ -117,6 +117,9 @@ def api_companies():
         LEFT JOIN properties p ON p.id = pc.property_id
         LEFT JOIN drill_programs dp ON dp.property_id = p.id
         LEFT JOIN drill_results dr ON dr.property_id = p.id
+        -- MP_LISTING_STATUS_V1: acquired / delisted / cease-traded companies stay in
+        -- the table but leave the public list. NULL or 'active' = listed.
+        WHERE COALESCE(c.listing_status, 'active') = 'active'
         GROUP BY c.id ORDER BY c.ticker
     """).fetchall()
     return jsonify([dict(r) for r in rows])
