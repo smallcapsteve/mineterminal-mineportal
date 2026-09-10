@@ -53,7 +53,19 @@ TABLES = {
     'companies': {
         'pk': 'id',
         'label': 'Companies',
-        'columns': ['id','ticker','name','exchange','description','website'],
+        # MP_DESC_COLUMNS_V1: description_source / description_updated_at are
+        # written by the TMX/FMP/Yahoo description backfill. They must be listed
+        # here or admin_update() drops them without an error.
+        'columns': ['id','ticker','name','exchange','description','website',
+                    'description_source','description_updated_at',
+                    # MP_OFFICERS_COLUMN_V1: JSON list of {name,title,role_type}
+                    # as filed with the CSE. Same rule as above - a column missing
+                    # from this list is dropped by admin_update() without an error.
+                    'officers','officers_source','officers_updated_at',
+                    # MP_SEDAR_COLUMN_V1: the CSE's 9-digit SEDAR profile id. The
+                    # filings themselves are fetched from the CSE in the browser;
+                    # only the key is stored.
+                    'sedar_profile_id','sedar_source','sedar_updated_at'],
         'required': ['ticker','name'],
         'fk': {},
         'display_col': 'name',
