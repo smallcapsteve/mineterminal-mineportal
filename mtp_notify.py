@@ -4,11 +4,24 @@
 Fire-and-forget: spawned in a daemon thread so the admin response is not
 blocked by MTP's response. Bounded retry with short backoff. Failures are
 logged to stderr and never raised.
+
+2026-09-13: MTP's receiver now exists (A20). Until today this posted into a 404
+on every admin write, and because failures are swallowed by design, nothing was
+ever logged — which is why company edits took up to an hour to reach the site
+and nobody could see why.
+
+The URL is now MTP's **origin**, not the public hostname. Both work; the public
+one was tested with this module's own User-Agent and returned 200. But this is
+two services on one box, and routing an internal webhook through the public
+internet and a WAF adds a failure mode that is invisible here: the same request
+with Python's default User-Agent is refused by Cloudflare with error 1010. A
+rule change there would silently reopen the exact gap A20 was about.
 """
 from __future__ import annotations
 import hashlib
 import hmac
 import json
+import os
 import sys
 import threading
 import time
@@ -16,7 +29,9 @@ import urllib.error
 import urllib.request
 
 _SECRET_FILE = "/opt/mineportal/.mtp_invalidate_secret"
-_URL = "https://mineterminalpro.com/api/cache/invalidate"
+_URL = os.environ.get(
+    "MTP_INVALIDATE_URL", "http://127.0.0.1:3000/api/cache/invalidate"
+)
 
 
 def _secret() -> str:
