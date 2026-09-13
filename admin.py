@@ -1,19 +1,40 @@
 """MineTerminal Admin Module - CRUD + Standardized API v1"""
 from flask import Blueprint, jsonify, request, g, make_response
-import sqlite3, os, json, hashlib, functools
+import sqlite3, os, json, hashlib, functools, hmac, sys
 
 admin_bp = Blueprint('admin', __name__)
-ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'm1234')
+# MINEPORTAL_B17_NO_DEFAULT_PW, 2026-09-13.
+# This used to fall back to a hard-coded five-character default when
+# ADMIN_PASSWORD was unset, and this file is published in a public
+# repository - so anyone could read that default and, because the token
+# below is derived from it, compute a valid admin token offline without
+# ever seeing our configuration.
+# No fallback now: an unset ADMIN_PASSWORD refuses everyone rather than
+# admitting anyone who read the source.
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD') or None
+if not ADMIN_PASSWORD:
+    sys.stderr.write(
+        'mineportal: ADMIN_PASSWORD is not set - the admin API is disabled. '
+        'Set it in /etc/systemd/system/mineportal.service.d/override.conf\n')
 
 # ============ AUTH ============
 def _make_token():
+    # FILED 2026-09-13, belongs to B27, deliberately NOT changed here:
+    # this token is an unsalted SHA-256 of the admin password, so it never
+    # changes and logging out cannot invalidate it - it is a second
+    # permanent password rather than a session, and it is offline
+    # brute-forceable. Replacing it is a session-handling redesign and
+    # wants its own pass; a B17 edit is the wrong place to do it quietly.
+    if not ADMIN_PASSWORD:
+        return None
     return hashlib.sha256(ADMIN_PASSWORD.encode()).hexdigest()[:32]
 
 def require_admin(f):
     @functools.wraps(f)
     def decorated(*args, **kwargs):
         token = request.headers.get('X-Admin-Token') or request.cookies.get('admin_token')
-        if not token or token != _make_token():
+        expected = _make_token()
+        if not expected or not token or not hmac.compare_digest(str(token), expected):
             return jsonify({'error': 'Unauthorized'}), 401
         return f(*args, **kwargs)
     return decorated
@@ -21,7 +42,8 @@ def require_admin(f):
 @admin_bp.route('/admin/api/login', methods=['POST'])
 def admin_login():
     data = request.get_json(force=True)
-    if data.get('password') == ADMIN_PASSWORD:
+    submitted = str(data.get('password') or '')
+    if ADMIN_PASSWORD and submitted and hmac.compare_digest(submitted, ADMIN_PASSWORD):
         token = _make_token()
         resp = make_response(jsonify({'ok': True, 'token': token}))
         resp.set_cookie('admin_token', token, httponly=True, samesite='Lax')
