@@ -18,23 +18,48 @@ if not ADMIN_PASSWORD:
         'Set it in /etc/systemd/system/mineportal.service.d/override.conf\n')
 
 # ============ AUTH ============
+# SECSWEEP_MP_TOKEN_V1 (2026-11-09, B27): the admin token used to be an unsalted
+# SHA-256 of the password - it never changed, logging out could not cancel it, and
+# it could be brute-forced offline. It is now a signed token that expires after
+# 12 hours, keyed by a separate secret file (root-created, readable by the
+# mineportal user only). Deleting or replacing that file signs everyone out.
+_SESSION_SECRET_FILE = os.environ.get('MP_ADMIN_SESSION_SECRET_FILE', '/opt/mineportal/.admin_session_secret')
+_TOKEN_MAX_AGE = 12 * 3600
+
+def _session_secret():
+    try:
+        with open(_SESSION_SECRET_FILE, 'rb') as fh:
+            s = fh.read().strip()
+        return s if len(s) >= 32 else None
+    except OSError:
+        return None
+
 def _make_token():
-    # FILED 2026-09-13, belongs to B27, deliberately NOT changed here:
-    # this token is an unsalted SHA-256 of the admin password, so it never
-    # changes and logging out cannot invalidate it - it is a second
-    # permanent password rather than a session, and it is offline
-    # brute-forceable. Replacing it is a session-handling redesign and
-    # wants its own pass; a B17 edit is the wrong place to do it quietly.
     if not ADMIN_PASSWORD:
         return None
-    return hashlib.sha256(ADMIN_PASSWORD.encode()).hexdigest()[:32]
+    sec = _session_secret()
+    if not sec:
+        return None
+    from itsdangerous import TimestampSigner
+    return TimestampSigner(sec, salt='mineportal-admin').sign(b'admin').decode()
+
+def _valid_token(token):
+    if not ADMIN_PASSWORD or not token:
+        return False
+    sec = _session_secret()
+    if not sec:
+        return False
+    from itsdangerous import TimestampSigner, BadSignature
+    try:
+        return TimestampSigner(sec, salt='mineportal-admin').unsign(str(token), max_age=_TOKEN_MAX_AGE) == b'admin'
+    except BadSignature:   # SignatureExpired is a subclass of BadSignature
+        return False
 
 def require_admin(f):
     @functools.wraps(f)
     def decorated(*args, **kwargs):
         token = request.headers.get('X-Admin-Token') or request.cookies.get('admin_token')
-        expected = _make_token()
-        if not expected or not token or not hmac.compare_digest(str(token), expected):
+        if not _valid_token(token):
             return jsonify({'error': 'Unauthorized'}), 401
         return f(*args, **kwargs)
     return decorated
@@ -45,8 +70,10 @@ def admin_login():
     submitted = str(data.get('password') or '')
     if ADMIN_PASSWORD and submitted and hmac.compare_digest(submitted, ADMIN_PASSWORD):
         token = _make_token()
+        if not token:
+            return jsonify({'error': 'Admin sessions unavailable'}), 503
         resp = make_response(jsonify({'ok': True, 'token': token}))
-        resp.set_cookie('admin_token', token, httponly=True, samesite='Lax')
+        resp.set_cookie('admin_token', token, httponly=True, samesite='Lax', max_age=_TOKEN_MAX_AGE)
         return resp
     return jsonify({'error': 'Invalid password'}), 401
 
@@ -572,7 +599,7 @@ def admin_ui():
 @admin_bp.route('/admin/api/company/<int:cid>/detail')
 def company_detail(cid):
     token = request.headers.get('X-Admin-Token') or request.cookies.get('admin_token')
-    if not token or token != _make_token():
+    if not _valid_token(token):
         return jsonify({'error': 'unauthorized'}), 401
     db = get_db()
     co = db.execute('SELECT * FROM companies WHERE id=?', [cid]).fetchone()
